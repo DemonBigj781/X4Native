@@ -1,7 +1,7 @@
 ﻿// ==========================================================================
 // x4_game_class_ids.inc - X4 Entity Class IDs
 // ==========================================================================
-// Auto-generated from class_ids.csv (game version: 900-607977).
+// Auto-generated from class_ids.csv (game version: 900-611726).
 // 121 classes, sentinel = 121.
 //
 // Usage:

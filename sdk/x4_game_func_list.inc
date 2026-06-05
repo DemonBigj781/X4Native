@@ -2095,3 +2095,12 @@ X4_FUNC(void, GetFleetUnitLoadoutCounts, (UILoadoutCounts2* result, FleetUnitID 
 X4_FUNC(uint32_t, GetNumPlayerEquipmentWares, (void))
 X4_FUNC(uint32_t, GetPlayerEquipmentWares, (EquipmentWareInfo* result, uint32_t resultlen))
 X4_FUNC(void, SetFleetUnitLoadout, (FleetUnitID fleetunitid, const char* macroname, UILoadout2 uiloadout))
+
+// ======== Game v9.00-611726 - Added (6 functions) ========
+
+X4_FUNC(bool, ArePersonalVenturesEnabled, (void))
+X4_FUNC(bool, AreVentureFeaturesEnabled, (void))
+X4_FUNC(bool, AreVentureTeamsEnabled, (void))
+X4_FUNC(uint32_t, GetAmmoCount, (UniverseID defensibleid, const char* macroname))
+X4_FUNC(Order3, GetMostRecentOrderFromInteractMenu, (UniverseID controllableid))
+X4_FUNC(bool, IsVentureChatEnabled, (void))

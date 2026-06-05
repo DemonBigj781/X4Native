@@ -17,7 +17,8 @@
       },
       "900-606138": { "rva": "0x00415D70" },
       "900-607242": { "rva": "0x00416320" },
-      "900-607977": { "rva": "0x00417890" }
+      "900-607977": { "rva": "0x00417890" },
+      "900-611726": { "rva": "0x004547B0" }
     },
     "MacroRegistry_Lookup": {
       "_find_hints": {
@@ -33,7 +34,8 @@
       },
       "900-606138": { "rva": "0x009EBF10" },
       "900-607242": { "rva": "0x009EF7B0" },
-      "900-607977": { "rva": "0x009F1B60" }
+      "900-607977": { "rva": "0x009F1B60" },
+      "900-611726": { "rva": "0x00A2F0D0" }
     },
     "MD_CreateDynamicInterior_Handler": {
       "_find_hints": {
@@ -48,7 +50,8 @@
       },
       "900-606138": { "rva": "0x00B64E50" },
       "900-607242": { "rva": "0x00B687C0" },
-      "900-607977": { "rva": "0x00B6AF20" }
+      "900-607977": { "rva": "0x00B6AF20" },
+      "900-611726": { "rva": "0x00BA6890" }
     },
     "Component_GetCombinedSeed": {
       "_find_hints": {
@@ -64,7 +67,8 @@
       },
       "900-606138": { "rva": "0x003163C0" },
       "900-607242": { "rva": "0x003160D0" },
-      "900-607977": { "rva": "0x00317450" }
+      "900-607977": { "rva": "0x00317450" },
+      "900-611726": { "rva": "0x000F0E80" }
     },
     "ComponentRegistry_Find": {
       "_find_hints": {
@@ -80,7 +84,8 @@
       },
       "900-606138": { "rva": "0x000CE890" },
       "900-607242": { "rva": "0x000CE910" },
-      "900-607977": { "rva": "0x000CECA0" }
+      "900-607977": { "rva": "0x000CECA0" },
+      "900-611726": { "rva": "0x000CED70" }
     },
     "PlanEntry_Construct": {
       "_find_hints": {
@@ -97,7 +102,8 @@
       },
       "900-606138": { "rva": "0x00D0F770" },
       "900-607242": { "rva": "0x00D13F90" },
-      "900-607977": { "rva": "0x00D16D70" }
+      "900-607977": { "rva": "0x00D16D70" },
+      "900-611726": { "rva": "0x00D57880" }
     },
     "GameAlloc": {
       "_find_hints": {
@@ -114,7 +120,8 @@
       },
       "900-606138": { "rva": "0x01462250" },
       "900-607242": { "rva": "0x01467360" },
-      "900-607977": { "rva": "0x0146C1D0" }
+      "900-607977": { "rva": "0x0146C1D0" },
+      "900-611726": { "rva": "0x014B7140" }
     },
     "ConstructionDB_CreatePlanDirect": {
       "_find_hints": {
@@ -131,7 +138,8 @@
       },
       "900-606138": { "rva": "0x00D14160" },
       "900-607242": { "rva": "0x00D18980" },
-      "900-607977": { "rva": "0x00D1B760" }
+      "900-607977": { "rva": "0x00D1B760" },
+      "900-611726": { "rva": "0x00D5C310" }
     },
     "ConstructionDB_AddPlan": {
       "_find_hints": {
@@ -148,7 +156,8 @@
       },
       "900-606138": { "rva": "0x00D13FC0" },
       "900-607242": { "rva": "0x00D187E0" },
-      "900-607977": { "rva": "0x00D1B5C0" }
+      "900-607977": { "rva": "0x00D1B5C0" },
+      "900-611726": { "rva": "0x00D5C170" }
     },
     "RadarVisibilityChanged_BuildEvent": {
       "_find_hints": {
@@ -158,7 +167,7 @@
           "2. From the RTTI type_info, find the vtable in .rdata (follow RTTI hierarchy: R0 → R4 → vtable)",
           "3. Find all code xrefs to the vtable — should be exactly 3 functions",
           "4. This is the SMALLEST of the 3 (~0xE8 bytes), called from a single massive jump-table function (~0x3AD8 bytes)",
-          "5. Verify: allocates 0x28 bytes, searches a property array for an integer ID (714 in 603098, 721 in 603990), reads a bool property (1281 in 603098, 1289 in 603990)"
+          "5. Verify: allocates 0x28 bytes, searches a property array for an integer ID (714 in 603098, 721 in 603990, 723 in 611726), reads a bool property (1281 in 603098, 1289 in 603990, 1293 in 611726)"
         ],
         "verify_strings": ["RadarVisibilityChangedEvent@U"],
         "byte_sig": "48 89 5C 24 08 57 48 83 EC 30 48 8B F9 C7 44 24 20 10 00 00 00 B9 28 00 00 00",
@@ -166,7 +175,8 @@
       },
       "900-606138": { "rva": "0x00A328A0" },
       "900-607242": { "rva": "0x00A35E60" },
-      "900-607977": { "rva": "0x00A38180" }
+      "900-607977": { "rva": "0x00A38180" },
+      "900-611726": { "rva": "0x00A753E0" }
     },
     "IsRadarVisible_ReadByte": {
       "_find_hints": {
@@ -183,7 +193,8 @@
       },
       "900-606138": { "rva": "0x0011CD70" },
       "900-607242": { "rva": "0x0011CFE0" },
-      "900-607977": { "rva": "0x0011D300" }
+      "900-607977": { "rva": "0x0011D300" },
+      "900-611726": { "rva": "0x00154DE0" }
     },
     "SetObjectRadarVisible_Action": {
       "_find_hints": {
@@ -192,7 +203,7 @@
           "1. Same vtable as RadarVisibilityChanged_BuildEvent — find via RTTI 'RadarVisibilityChangedEvent@U'",
           "2. Of the 3 vtable xrefs, this is the MEDIUM-sized one (~0x197 bytes) that writes to component+0x400",
           "3. Verify: contains the instruction pattern 'mov [reg+400h], al' (88 87 00 04 00 00)",
-          "4. Verify: propagates to type-107 children via a vtable+4536 type-check loop after the event dispatch"
+          "4. Verify: propagates to derived children via a vtable IsDerived(109) type-check loop after the event dispatch"
         ],
         "verify_strings": ["RadarVisibilityChangedEvent@U"],
         "byte_sig": "40 53 56 57 48 83 EC 50 48 8B F1 48 8D 54 24 70 48 83 C1 28 49 8B",
@@ -200,7 +211,8 @@
       },
       "900-606138": { "rva": "0x00B92620" },
       "900-607242": { "rva": "0x00B96270" },
-      "900-607977": { "rva": "0x00B98A20" }
+      "900-607977": { "rva": "0x00B98A20" },
+      "900-611726": { "rva": "0x00BD4010" }
     },
     "X4_FrameTick": {
       "_find_hints": {
@@ -217,7 +229,8 @@
       },
       "900-606138": { "rva": "0x00F53F80" },
       "900-607242": { "rva": "0x00F58520" },
-      "900-607977": { "rva": "0x00F5D0C0" }
+      "900-607977": { "rva": "0x00F5D0C0" },
+      "900-611726": { "rva": "0x00FA2D70" }
     },
     "CreateOrderInternal": {
       "_find_hints": {
@@ -235,7 +248,8 @@
       },
       "900-606138": { "rva": "0x004248C0" },
       "900-607242": { "rva": "0x00424D00" },
-      "900-607977": { "rva": "0x00426240" }
+      "900-607977": { "rva": "0x00426240" },
+      "900-611726": { "rva": "0x00463400" }
     },
     "SetOrderParamInternal": {
       "_find_hints": {
@@ -253,7 +267,8 @@
       },
       "900-606138": { "rva": "0x010274A0" },
       "900-607242": { "rva": "0x0102B7D0" },
-      "900-607977": { "rva": "0x01030480" }
+      "900-607977": { "rva": "0x01030480" },
+      "900-611726": { "rva": "0x010764D0" }
     },
     "SetCommander": {
       "_find_hints": {
@@ -270,7 +285,8 @@
       },
       "900-606138": { "rva": "0x001C6170" },
       "900-607242": { "rva": "0x001C6460" },
-      "900-607977": { "rva": "0x001C7190" }
+      "900-607977": { "rva": "0x001C7190" },
+      "900-611726": { "rva": "0x001FF400" }
     },
     "SetAssignment": {
       "_find_hints": {
@@ -286,7 +302,8 @@
       },
       "900-606138": { "rva": "0x001C5F40" },
       "900-607242": { "rva": "0x001C6230" },
-      "900-607977": { "rva": "0x001C6F60" }
+      "900-607977": { "rva": "0x001C6F60" },
+      "900-611726": { "rva": "0x001FF1D0" }
     },
     "GetFactionBuildMethod": {
       "_find_hints": {
@@ -303,7 +320,8 @@
       },
       "900-606138": { "rva": "0x00194CC0" },
       "900-607242": { "rva": "0x00194FB0" },
-      "900-607977": { "rva": "0x001953C0" }
+      "900-607977": { "rva": "0x001953C0" },
+      "900-611726": { "rva": "0x001CD310" }
     },
     "EventQueue_InsertOrDispatch": {
       "_find_hints": {
@@ -317,13 +335,13 @@
           "6. ImmediateDispatch (called from this function) iterates up to 2048 registered cue listeners",
           "7. Verify: function size ~200 bytes in 603098, ~0x327 bytes in 603990. Contains timestamp + 0.0001 comparison"
         ],
-        "verify_strings": [],
         "byte_sig": "48 85 D2 0F 84 ?? ?? ?? ?? 48 89 5C 24 08 48 89 74 24 20 F2 0F 11 54 24 18 57 48 83 EC 60",
         "byte_sig_note": "Prologue (603990): test rdx,rdx; jz end; save rbx/rsi; movsd [rsp+18h],xmm2 (timestamp); push rdi; sub rsp,60h. Unique match. Old sig (603098) was generic 20-byte prologue with 146 matches — do not use."
       },
       "900-606138": { "rva": "0x00959360" },
       "900-607242": { "rva": "0x0095CA80" },
-      "900-607977": { "rva": "0x0095E7C0" }
+      "900-607977": { "rva": "0x0095E7C0" },
+      "900-611726": { "rva": "0x0099A3F0" }
     },
     "FactionRelation_LookupReasonID": {
       "_find_hints": {
@@ -334,31 +352,34 @@
           "3. Xref any entry's xrefs-to → finds the populator (FactionRelation_InitReasonTable) and the consumer.",
           "4. The CONSUMER does memcmp-based binary search over 24-byte entries `{char* str, uint64 len, int32 reason_id}` — it's FactionRelation_LookupReasonID.",
           "5. Verify: 2-arg function (rcx=void*unused, rdx=string_view*); returns int32 in eax; calls memcmp inside the loop.",
-          "6. Cross-check the docs at `X4Native/docs/rev/FACTION_RELATIONS.md §3.2`."
+          "6. Alt (string cache miss): decompile SetFactionRelationToPlayerFaction (PE export) — the callee taking (faction_node, string_view{reasonid,len}) and returning the int32 reason id passed to the mutation dispatcher is this function.",
+          "7. Cross-check the docs at `X4Native/docs/rev/FACTION_RELATIONS.md §3.2`."
         ],
         "verify_strings": ["relationchangereason."]
       },
       "900-606138": { "rva": "0x002CBF00" },
       "900-607242": { "rva": "0x002CBE10" },
-      "900-607977": { "rva": "0x002CD050" }
+      "900-607977": { "rva": "0x002CD050" },
+      "900-611726": { "rva": "0x0030C2F0" }
     },
     "FactionRelation_GetFloat": {
       "_find_hints": {
         "method": "caller_chain_unique_size",
         "steps": [
           "1. Find SetFactionRelationToPlayerFaction (PE export) — it inlines the FNV-1+RBTree faction lookup.",
-          "2. From its body, identify the call site that reaches FactionRelation_ApplyMutation (large faction-event dispatcher with old/new float event payload).",
+          "2. From its body, identify the call site that reaches FactionRelation_ApplyMutation (large faction-event dispatcher with old/new float event payload — builds U::FactionRelationChangedEvent).",
           "3. Inside ApplyMutation, the FIRST callee that takes (rcx=this_faction, rdx=other_faction) and returns float in xmm0 is FactionRelation_GetFloat.",
-          "4. Verify: function is exactly ~0x37 bytes (very small, distinctive). Disassembly: `mov r8,rdx; cmp rdx,rcx; jnz <slow>; movss xmm0,Y; retn; <slow>: mov rax,gs:58h; mov rcx,[rcx+280h]; mov r9d,310h; add rcx,10h; mov rdx,[rax]; movsd xmm2,[r9+rdx]; mov rdx,r8; jmp FactionRelation_ReadRawFloat`.",
+          "4. Verify: very small function (~0x37 bytes). `if (other != this) return ReadRawFloat(*(this+0x280)+0x10, other);` — same-faction fast path returns a fixed value, slow path reads RelationData at this+0x280 and tailcalls FactionRelation_ReadRawFloat.",
           "5. Cross-check the docs at `X4Native/docs/rev/FACTION_RELATIONS.md §2.2`."
         ],
         "verify_strings": [],
         "byte_sig": "4C 8B C2 48 3B D1 75 06 F3 0F 10 05",
-        "byte_sig_note": "Prologue (606138): mov r8,rdx; cmp rdx,rcx; jnz short; movss xmm0,Y. Distinctive — function-pair-equality fast path with movss xmm0,RIP-relative."
+        "byte_sig_note": "Prologue (606138): mov r8,rdx; cmp rdx,rcx; jnz short; movss xmm0,Y. Distinctive — function-pair-equality fast path with movss xmm0,RIP-relative. Prologue register allocation may vary between builds (no match in 611726) — fall back to the ApplyMutation caller-chain method above."
       },
       "900-606138": { "rva": "0x0030F700" },
       "900-607242": { "rva": "0x0030F500" },
-      "900-607977": { "rva": "0x00310800" }
+      "900-607977": { "rva": "0x00310800" },
+      "900-611726": { "rva": "0x0034CA70" }
     }
   }
 }

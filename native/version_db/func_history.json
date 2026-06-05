@@ -11,7 +11,8 @@
         "900-605025",
         "900-606138",
         "900-607242",
-        "900-607977"
+        "900-607977",
+        "900-611726"
     ],
     "functions": {
         "AbortActiveDiplomacyActionOperation": {
@@ -6202,6 +6203,24 @@
         },
         "SetFleetUnitLoadout": {
             "added": "900-607977"
+        },
+        "ArePersonalVenturesEnabled": {
+            "added": "900-611726"
+        },
+        "AreVentureFeaturesEnabled": {
+            "added": "900-611726"
+        },
+        "AreVentureTeamsEnabled": {
+            "added": "900-611726"
+        },
+        "GetAmmoCount": {
+            "added": "900-611726"
+        },
+        "GetMostRecentOrderFromInteractMenu": {
+            "added": "900-611726"
+        },
+        "IsVentureChatEnabled": {
+            "added": "900-611726"
         }
     }
 }

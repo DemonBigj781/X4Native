@@ -1,7 +1,7 @@
 // ==========================================================================
 // x4_game_func_table.h - X4 Game Function Pointer Table
 // ==========================================================================
-// Auto-generated from X4 v9.00-607977 FFI declarations.
+// Auto-generated from X4 v9.00-611726 FFI declarations.
 //
 // The X4GameFunctions struct provides compile-time type-safe access to
 // resolved game function pointers. Populated at runtime via GetProcAddress.
@@ -21,7 +21,7 @@ extern "C" {
 #endif
 
 // --------------------------------------------------------------------------
-// Function Pointer Table (2059 entries)
+// Function Pointer Table (2065 entries)
 // --------------------------------------------------------------------------
 
 #define X4_FUNC(ret, name, params) ret (*name) params;
@@ -38,7 +38,7 @@ typedef struct X4GameFunctions {
 typedef void* (*X4GetGameFunctionFn)(const char* name);
 
 // --------------------------------------------------------------------------
-// Untyped Exports (312)
+// Untyped Exports (313)
 // --------------------------------------------------------------------------
 // These functions exist in X4.exe's export table but have no known
 // C signature from FFI data. Resolve with X4GetGameFunctionFn and cast.
@@ -195,6 +195,7 @@ typedef void* (*X4GetGameFunctionFn)(const char* name);
 //   ActivatePlayerControls
 //   AddCrewExchangeOrder
 //   AmdPowerXpressRequestHighPerformance
+//   AreVentureVisitorsEnabled
 //   CanCancelCurrentOrder
 //   CanWarpShipToVentureDock
 //   CheckGroupedWeaponModCompatibility
