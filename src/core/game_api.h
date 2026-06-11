@@ -26,9 +26,12 @@ public:
     static bool init();
     static void shutdown();
 
-    // Load internal function RVA database for the given game build.
+    // Load internal function offset database for the given game build.
     // Tries primary_build first (e.g. "900-beta2"), falls back to fallback_build
     // (e.g. "900") so beta builds can reuse the last known-good RVA entry.
+    // Platform-specific keys are preferred when present:
+    //   Windows: rva_windows, rva_win32, rva
+    //   Linux:   rva_linux, rva_elf, offset_linux, offset_elf, rva
     static void load_internal_db(const std::string& ext_root,
                                  const std::string& primary_build,
                                  const std::string& fallback_build = {});

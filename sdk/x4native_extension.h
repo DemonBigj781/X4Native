@@ -204,10 +204,11 @@ typedef struct X4NativeAPI {
     void  (*_run_after_hooks)(X4HookContext* ctx);
 
     // --- Internal (non-exported) function resolution ---
-    // Resolve a non-exported game function by name via the RVA database
-    // (native/version_db/internal_functions.json). Returns NULL if not found
-    // for the current game version. Use this for reverse-engineered functions
-    // that aren't in X4.exe's export table.
+    // Resolve a non-exported game function by name via the internal offset
+    // database (native/version_db/internal_functions.json). Returns NULL if not
+    // found for the current game version. Platform-specific keys may be used
+    // by the framework when available (for example rva_linux / offset_linux on
+    // Linux builds instead of a generic Windows-oriented rva).
     void* (*resolve_internal)(const char* name);
 
     // --- MD event subscription (O(1) dispatch by type_id) ---

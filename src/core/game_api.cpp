@@ -19,8 +19,32 @@
 #include <cstddef>
 #include <cstring>
 #include <fstream>
+#include <optional>
 
 namespace x4n {
+
+namespace {
+
+std::optional<uintptr_t> resolve_platform_offset(const nlohmann::json& version_entry,
+                                                 std::string& source_key) {
+#if defined(_WIN32)
+    constexpr std::array<const char*, 3> keys = {"rva_windows", "rva_win32", "rva"};
+#else
+    constexpr std::array<const char*, 5> keys = {"rva_linux", "rva_elf", "offset_linux", "offset_elf", "rva"};
+#endif
+
+    for (const char* key : keys) {
+        if (!version_entry.contains(key) || !version_entry[key].is_string()) {
+            continue;
+        }
+        source_key = key;
+        return std::stoull(version_entry[key].get<std::string>(), nullptr, 16);
+    }
+
+    return std::nullopt;
+}
+
+} // namespace
 
 X4GameFunctions GameAPI::s_table = {};
 bool GameAPI::s_initialized = false;
@@ -146,13 +170,20 @@ void GameAPI::load_internal_db(const std::string& ext_root,
             else if (!fallback_build.empty() && entry.contains(fallback_build)) key = &fallback_build;
             if (!key) continue;
             auto& ver = entry[*key];
-            if (!ver.contains("rva") || !ver["rva"].is_string()) continue;
+            std::string source_key;
+            auto resolved = resolve_platform_offset(ver, source_key);
+            if (!resolved.has_value()) continue;
 
-            auto rva_str = ver["rva"].get<std::string>();
-            uintptr_t rva = std::stoull(rva_str, nullptr, 16);
+            uintptr_t rva = *resolved;
             void* addr = reinterpret_cast<void*>(base + rva);
             s_internal_funcs[name] = addr;
             count++;
+
+#if !defined(_WIN32)
+            if (source_key == "rva") {
+                Logger::warn("GameAPI: internal function '{}' is using generic 'rva' on Linux; add a linux-specific offset if this proves unstable", name);
+            }
+#endif
         }
 
         // Populate internal function pointers into the unified game table
