@@ -11,14 +11,10 @@
 
 #include "game_api.h"
 #include "logger.h"
+#include "platform.h"
 
 #include <x4_game_func_table.h>
 #include <nlohmann/json.hpp>
-
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
 
 #include <cstddef>
 #include <cstring>
@@ -56,7 +52,7 @@ static const FuncEntry s_ifunc_entries[] = {
 };
 #undef X4_FUNC
 
-static HMODULE s_x4_module = nullptr;
+static platform::ModuleHandle s_x4_module = nullptr;
 static int     s_resolved  = 0;
 
 // ---------------------------------------------------------------------------
@@ -65,7 +61,7 @@ static int     s_resolved  = 0;
 
 bool GameAPI::init() {
     // X4.exe is the host process — GetModuleHandle(NULL) gets its handle
-    s_x4_module = GetModuleHandleA(nullptr);
+    s_x4_module = platform::get_main_module();
     if (!s_x4_module) {
         Logger::error("GameAPI: Failed to get X4.exe module handle");
         return false;
@@ -76,7 +72,7 @@ bool GameAPI::init() {
 
     auto* base = reinterpret_cast<char*>(&s_table);
     for (const auto& entry : s_func_entries) {
-        FARPROC proc = GetProcAddress(s_x4_module, entry.name);
+        auto proc = platform::get_symbol(s_x4_module, entry.name);
         if (proc) {
             *reinterpret_cast<void**>(base + entry.offset) =
                 reinterpret_cast<void*>(proc);
@@ -113,7 +109,7 @@ X4GameFunctions* GameAPI::table() {
 
 void* GameAPI::get_function(const char* name) {
     if (!s_x4_module || !name) return nullptr;
-    return reinterpret_cast<void*>(GetProcAddress(s_x4_module, name));
+    return reinterpret_cast<void*>(platform::get_symbol(s_x4_module, name));
 }
 
 void* GameAPI::get_internal(const char* name) {

@@ -13,25 +13,31 @@
 // ---------------------------------------------------------------------------
 
 #include "lua_api.h"
+#include "platform.h"
 #include "x4native_defs.h"
-
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
 
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <string>
 #include <unordered_map>
 #include <vector>
 #include <mutex>
 
+namespace fs = std::filesystem;
+
+static uint64_t file_mtime_value(const std::string& path) {
+    std::error_code ec;
+    auto mtime = fs::last_write_time(path, ec);
+    if (ec) return 0;
+    return static_cast<uint64_t>(mtime.time_since_epoch().count());
+}
+
 // ---------------------------------------------------------------------------
 // State (persists across /reloadui because the proxy stays mapped)
 // ---------------------------------------------------------------------------
 static lua_State*       g_lua            = nullptr;
-static HMODULE          g_core_module    = nullptr;
+static x4n::platform::ModuleHandle g_core_module = nullptr;
 static CoreDispatch     g_dispatch       = {};
 static core_init_fn     g_core_init      = nullptr;
 static core_shutdown_fn g_core_shutdown  = nullptr;
@@ -53,7 +59,7 @@ static bool             g_initialized    = false;
 
 static bool g_autoreload_enabled   = false;   // from x4native_settings.json
 static bool g_autoreload_checked   = false;   // settings file read?
-static FILETIME g_last_core_mtime  = {};       // last known timestamp
+static uint64_t g_last_core_mtime  = 0;        // last known timestamp
 
 /// Read x4native_settings.json to check "autoreload" flag.
 /// Called on each core load so the result is logged after hot-reloads too.
@@ -80,20 +86,16 @@ static void read_autoreload_setting() {
 /// Check if core DLL on disk is newer than last known timestamp.
 /// Updates g_last_core_mtime on change.
 static bool core_modified_since_last_check() {
-    WIN32_FILE_ATTRIBUTE_DATA attr = {};
-    if (!GetFileAttributesExA(g_core_path.c_str(),
-                              GetFileExInfoStandard, &attr))
-        return false;
+    uint64_t current_mtime = file_mtime_value(g_core_path);
+    if (current_mtime == 0) return false;
 
-    if (g_last_core_mtime.dwHighDateTime == 0 &&
-        g_last_core_mtime.dwLowDateTime == 0) {
-        // First call — seed with current timestamp
-        g_last_core_mtime = attr.ftLastWriteTime;
+    if (g_last_core_mtime == 0) {
+        g_last_core_mtime = current_mtime;
         return false;
     }
 
-    if (CompareFileTime(&attr.ftLastWriteTime, &g_last_core_mtime) > 0) {
-        g_last_core_mtime = attr.ftLastWriteTime;
+    if (current_mtime > g_last_core_mtime) {
+        g_last_core_mtime = current_mtime;
         if (g_dispatch.log) g_dispatch.log(1, "Autoreload: core DLL modified on disk");
         return true;
     }
@@ -162,21 +164,14 @@ static bool proxy_get_lua_property_str(const char* getter_fn, X4nLuaKey key,
 /// Derive the extension root from the proxy DLL path.
 /// Proxy lives at <ext_root>/native/x4native_64.dll
 static std::string detect_ext_root() {
-    char buf[MAX_PATH];
-    HMODULE self = nullptr;
-    GetModuleHandleExA(
-        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-        GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-        reinterpret_cast<LPCSTR>(&detect_ext_root), &self);
-    GetModuleFileNameA(self, buf, MAX_PATH);
-
-    std::string p(buf);
-    auto pos = p.rfind("\\native\\");
-    if (pos != std::string::npos)
-        return p.substr(0, pos + 1);      // includes trailing backslash
-    // Fallback: parent of DLL
-    pos = p.rfind('\\');
-    return (pos != std::string::npos) ? p.substr(0, pos + 1) : p;
+    std::string p = x4n::platform::module_filename(
+        reinterpret_cast<x4n::platform::ModuleHandle>(&detect_ext_root));
+    if (p.empty()) return {};
+    fs::path ext_root = fs::path(p).parent_path().parent_path();
+    std::string out = ext_root.string();
+    if (!out.empty() && out.back() != '/' && out.back() != '\\')
+        out += fs::path::preferred_separator;
+    return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -185,25 +180,29 @@ static std::string detect_ext_root() {
 
 static bool load_core() {
     // Copy-on-load: the original stays unlocked so builds can overwrite it
-    if (!CopyFileA(g_core_path.c_str(), g_core_live_path.c_str(), FALSE)) {
-        OutputDebugStringA("X4Native proxy: CopyFile failed for core DLL\n");
+    std::error_code copy_ec;
+    fs::copy_file(g_core_path, g_core_live_path, fs::copy_options::overwrite_existing, copy_ec);
+    if (copy_ec) {
+        std::fputs("X4Native proxy: copy_file failed for core library\n", stderr);
         return false;
     }
 
-    g_core_module = LoadLibraryA(g_core_live_path.c_str());
+    g_core_module = x4n::platform::load_module(g_core_live_path.c_str());
     if (!g_core_module) {
-        OutputDebugStringA("X4Native proxy: LoadLibrary failed for core DLL\n");
+        std::fprintf(stderr,
+                     "X4Native proxy: load_module failed for core library '%s': %s\n",
+                     g_core_live_path.c_str(), x4n::platform::last_error());
         return false;
     }
 
     g_core_init     = reinterpret_cast<core_init_fn>(
-                          GetProcAddress(g_core_module, "core_init"));
+                          x4n::platform::get_symbol(g_core_module, "core_init"));
     g_core_shutdown = reinterpret_cast<core_shutdown_fn>(
-                          GetProcAddress(g_core_module, "core_shutdown"));
+                          x4n::platform::get_symbol(g_core_module, "core_shutdown"));
 
     if (!g_core_init) {
-        OutputDebugStringA("X4Native proxy: core_init export not found\n");
-        FreeLibrary(g_core_module);
+        std::fputs("X4Native proxy: core_init export not found\n", stderr);
+        x4n::platform::unload_module(g_core_module);
         g_core_module = nullptr;
         return false;
     }
@@ -222,8 +221,8 @@ static bool load_core() {
     ctx.get_lua_property_str = proxy_get_lua_property_str;
 
     if (g_core_init(&ctx) != 0) {
-        OutputDebugStringA("X4Native proxy: core_init returned error\n");
-        FreeLibrary(g_core_module);
+        std::fputs("X4Native proxy: core_init returned error\n", stderr);
+        x4n::platform::unload_module(g_core_module);
         g_core_module = nullptr;
         return false;
     }
@@ -243,7 +242,7 @@ static bool reload_core() {
     if (g_core_module) {
         if (g_core_shutdown)
             g_core_shutdown();
-        FreeLibrary(g_core_module);
+        x4n::platform::unload_module(g_core_module);
         g_core_module = nullptr;
     }
 
@@ -257,15 +256,11 @@ static bool reload_core() {
 
 /// Returns true if the on-disk core is newer than the live copy.
 static bool core_needs_reload() {
-    WIN32_FILE_ATTRIBUTE_DATA disk_attr = {}, live_attr = {};
-    if (!GetFileAttributesExA(g_core_path.c_str(),
-                              GetFileExInfoStandard, &disk_attr))
-        return false;
-    if (!GetFileAttributesExA(g_core_live_path.c_str(),
-                              GetFileExInfoStandard, &live_attr))
-        return true;   // live copy missing — need to load
-    return CompareFileTime(&disk_attr.ftLastWriteTime,
-                           &live_attr.ftLastWriteTime) > 0;
+    uint64_t disk_attr = file_mtime_value(g_core_path);
+    uint64_t live_attr = file_mtime_value(g_core_live_path);
+    if (disk_attr == 0) return false;
+    if (live_attr == 0) return true;
+    return disk_attr > live_attr;
 }
 
 // ---------------------------------------------------------------------------
@@ -497,6 +492,32 @@ static int l_log(lua_State* L) {
     return 0;
 }
 
+static int l_stash_set(lua_State* L) {
+    const char* key = x4n::lua::L_checkstring(L, 1);
+    size_t len = 0;
+    const char* value = x4n::lua::L_checklstring(L, 2, &len);
+    x4n::lua::pushboolean(L, proxy_stash_set("lua", key, value, static_cast<uint32_t>(len)) ? 1 : 0);
+    return 1;
+}
+
+static int l_stash_get(lua_State* L) {
+    const char* key = x4n::lua::L_checkstring(L, 1);
+    uint32_t size = 0;
+    const void* data = proxy_stash_get("lua", key, &size);
+    if (!data) {
+        x4n::lua::pushnil(L);
+        return 1;
+    }
+    x4n::lua::pushlstring(L, static_cast<const char*>(data), size);
+    return 1;
+}
+
+static int l_stash_remove(lua_State* L) {
+    const char* key = x4n::lua::L_checkstring(L, 1);
+    x4n::lua::pushboolean(L, proxy_stash_remove("lua", key) ? 1 : 0);
+    return 1;
+}
+
 static int l_get_version(lua_State* L) {
     const char* v = g_dispatch.get_version
                         ? g_dispatch.get_version()
@@ -644,24 +665,31 @@ static int l_should_autoreload(lua_State* L) {
 // ---------------------------------------------------------------------------
 // Entry point — called by Lua: package.loadlib("...dll", "luaopen_x4native")
 // ---------------------------------------------------------------------------
-extern "C" __declspec(dllexport)
+X4NATIVE_EXPORT
 int luaopen_x4native(lua_State* L) {
     g_lua = L;
 
     // Resolve Lua C API function pointers (idempotent)
     if (!x4n::lua::resolve()) {
-        OutputDebugStringA("X4Native: FATAL — failed to resolve Lua API\n");
+        std::fputs("X4Native: FATAL - failed to resolve Lua API\n", stderr);
         return 0;
     }
 
     if (!g_initialized) {
         // --- First load (game start) ---
         g_ext_root       = detect_ext_root();
-        g_core_path      = g_ext_root + "native\\x4native_core.dll";
-        g_core_live_path = g_ext_root + "native\\x4native_core_live.dll";
+        const char sep = fs::path::preferred_separator;
+        const std::string base = std::string("native") + sep;
+        g_core_path      = g_ext_root + base + x4n::platform::core_binary_name();
+        g_core_live_path = g_ext_root + base +
+#if defined(_WIN32)
+                           "x4native_core_live.dll";
+#else
+                           "x4native_core_live.so";
+#endif
 
         if (!load_core())
-            return x4n::lua::L_error(L, "X4Native: failed to load core DLL");
+            return x4n::lua::L_error(L, "X4Native: failed to load core library");
 
         g_initialized = true;
     } else {
@@ -686,6 +714,9 @@ int luaopen_x4native(lua_State* L) {
         { "raise_event",             l_raise_event             },
         { "raise_lua_event",         l_raise_lua_event         },
         { "log",                     l_log                     },
+        { "stash_set",               l_stash_set               },
+        { "stash_get",               l_stash_get               },
+        { "stash_remove",            l_stash_remove            },
         { "get_version",             l_get_version             },
         { "get_loaded_extensions",   l_get_loaded_extensions   },
         { "reload",                  l_reload                  },
@@ -708,6 +739,7 @@ int luaopen_x4native(lua_State* L) {
 // ---------------------------------------------------------------------------
 // DllMain
 // ---------------------------------------------------------------------------
+#if defined(_WIN32)
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID reserved) {
     if (reason == DLL_PROCESS_ATTACH) {
         // Pin this DLL so LuaJIT's FreeLibrary (on lua_close during save
@@ -741,3 +773,4 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID reserved) {
     }
     return TRUE;
 }
+#endif

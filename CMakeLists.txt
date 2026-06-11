@@ -27,6 +27,21 @@ if(NOT X4_GAME_DIR AND WIN32)
     unset(_X4_CANDIDATE)
 endif()
 
+if(NOT X4_GAME_DIR AND UNIX AND NOT APPLE)
+    foreach(_X4_CANDIDATE
+        "$ENV{HOME}/.local/share/Steam/steamapps/common/X4 Foundations"
+        "/run/media/jack/36DAC4F7DAC4B481/SteamLibrary/steamapps/common/X4 Foundations"
+        "/run/media/jack/36DAC4F7DAC4B481/SteamLibrary/steamapps/common/x4 foundations")
+        if(EXISTS "${_X4_CANDIDATE}/x4")
+            set(X4_GAME_DIR "${_X4_CANDIDATE}" CACHE PATH
+                "X4 Foundations installation directory (auto-detected)" FORCE)
+            message(STATUS "Auto-detected native Linux X4 at: ${X4_GAME_DIR}")
+            break()
+        endif()
+    endforeach()
+    unset(_X4_CANDIDATE)
+endif()
+
 if(NOT X4_GAME_DIR)
     message(WARNING "X4_GAME_DIR not set and auto-detect failed.\n"
                     "Deploy target will be unavailable.\n"

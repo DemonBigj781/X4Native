@@ -21,12 +21,14 @@
 #include <x4_game_func_table.h>
 #include <x4_game_offsets.h>
 #include <x4_manual_types.h>
-#include <MinHook.h>
 
+#if defined(_WIN32)
+#include <MinHook.h>
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
+#endif
 
 #include <array>
 #include <string>
@@ -161,6 +163,8 @@ static void resolve_offset_pointers(uintptr_t base) {
     s_offsets.macro_registry       = reinterpret_cast<void*>(base + X4_RVA_MACRO_REGISTRY);
     s_offsets.radar_event_vtable   = reinterpret_cast<void*>(base + X4_RADAR_EVENT_VTABLE_RVA);
 }
+
+#if defined(_WIN32)
 
 // ---------------------------------------------------------------------------
 // Native frame tick hook — fires on_native_frame_update to extensions
@@ -391,6 +395,27 @@ static void remove_md_event_hook() {
     // MD subscription cleanup handled by EventSystem::init() on next startup
 }
 
+#else
+
+static bool install_frame_tick_hook() {
+    x4n::Logger::warn("Native frame hook unavailable on Linux in phase 1");
+    return false;
+}
+
+static void remove_frame_tick_hook() {}
+
+static bool install_radar_visibility_hook() { return false; }
+static void remove_radar_visibility_hook() {}
+
+static bool install_md_event_hook() {
+    x4n::Logger::warn("MD event hook unavailable on Linux in phase 1");
+    return false;
+}
+
+static void remove_md_event_hook() {}
+
+#endif
+
 // ---------------------------------------------------------------------------
 // Dispatch implementations (called by proxy via function pointers)
 // ---------------------------------------------------------------------------
@@ -462,7 +487,7 @@ static void impl_set_extension_setting(const char* ext_id, const char* key,
 // Exported functions (called by proxy DLL)
 // ---------------------------------------------------------------------------
 
-extern "C" __declspec(dllexport)
+X4NATIVE_EXPORT
 int core_init(CoreInitContext* ctx) {
     g_ext_root             = ctx->ext_root;
     g_get_lua_property     = ctx->get_lua_property;
@@ -535,7 +560,7 @@ int core_init(CoreInitContext* ctx) {
     return 0;
 }
 
-extern "C" __declspec(dllexport)
+X4NATIVE_EXPORT
 void core_shutdown() {
     impl_shutdown();
 }
@@ -543,6 +568,8 @@ void core_shutdown() {
 // ---------------------------------------------------------------------------
 // DllMain — intentionally minimal
 // ---------------------------------------------------------------------------
+#if defined(_WIN32)
 BOOL APIENTRY DllMain(HMODULE, DWORD, LPVOID) {
     return TRUE;
 }
+#endif

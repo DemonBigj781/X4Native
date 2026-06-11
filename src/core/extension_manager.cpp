@@ -4,6 +4,7 @@
 #include "game_api.h"
 #include "hook_manager.h"
 #include "settings_manager.h"
+#include "platform.h"
 #include "x4native_defs.h"
 
 #include <x4_game_types.h>
@@ -28,6 +29,42 @@ namespace fs = std::filesystem;
 using json = nlohmann::json;
 
 namespace x4n {
+
+static uint64_t file_mtime_value(const std::string& path) {
+    std::error_code ec;
+    auto mtime = fs::last_write_time(path, ec);
+    if (ec) return 0;
+    return static_cast<uint64_t>(mtime.time_since_epoch().count());
+}
+
+static uint64_t file_size_value(const std::string& path) {
+    std::error_code ec;
+    auto size = fs::file_size(path, ec);
+    if (ec) return 0;
+    return static_cast<uint64_t>(size);
+}
+
+#if defined(_WIN32)
+static int guarded_call_api_version(ExtensionInfo::api_version_fn fn) {
+    __try { return fn(); } __except (EXCEPTION_EXECUTE_HANDLER) { return -1; }
+}
+static int guarded_call_init(ExtensionInfo::init_fn fn, X4NativeAPI* api) {
+    __try { return fn(api); } __except (EXCEPTION_EXECUTE_HANDLER) { return -1; }
+}
+static void guarded_call_shutdown(ExtensionInfo::shutdown_fn fn) {
+    __try { fn(); } __except (EXCEPTION_EXECUTE_HANDLER) {}
+}
+#else
+static int guarded_call_api_version(ExtensionInfo::api_version_fn fn) {
+    try { return fn(); } catch (...) { return -1; }
+}
+static int guarded_call_init(ExtensionInfo::init_fn fn, X4NativeAPI* api) {
+    try { return fn(api); } catch (...) { return -1; }
+}
+static void guarded_call_shutdown(ExtensionInfo::shutdown_fn fn) {
+    try { fn(); } catch (...) {}
+}
+#endif
 
 std::vector<ExtensionInfo> ExtensionManager::s_extensions;
 std::string ExtensionManager::s_ext_root;
@@ -113,7 +150,9 @@ void ExtensionManager::discover() {
         if (!fs::exists(config_path)) continue;
 
         ExtensionInfo info;
-        info.path = entry.path().string() + "\\";
+        info.path = entry.path().string();
+        if (!info.path.empty() && info.path.back() != '/' && info.path.back() != '\\')
+            info.path += fs::path::preferred_separator;
 
         if (parse_config(config_path.string(), info)) {
             // Identity comes from content.xml — X4 enforces id uniqueness.
@@ -250,8 +289,8 @@ static void api_log_ext(int level, const char* message, void* api_ptr) {
     auto lv = static_cast<x4n::LogLevel>(level);
     auto [api, _] = resolve_ext(api_ptr);
     if (api) {
-        HANDLE h = static_cast<HANDLE>(api->_ext_log_handle);
-        if (h && h != INVALID_HANDLE_VALUE) {
+        FILE* h = static_cast<FILE*>(api->_ext_log_handle);
+        if (h) {
             x4n::Logger::write_to(h, lv, message);
             return;
         }
@@ -287,18 +326,18 @@ static void api_init_log(const char* filename, void* api_ptr) {
         return;
     }
 
-    HANDLE new_h = Logger::open_log(new_path);
-    if (new_h == INVALID_HANDLE_VALUE) {
+    FILE* new_h = Logger::open_log(new_path);
+    if (!new_h) {
         Logger::warn("Extension '{}': set_log_file() could not open '{}'",
                      ext->display_name, new_path);
         return;
     }
 
     // Close the old handle only after the new one opened successfully.
-    HANDLE old_h = static_cast<HANDLE>(api->_ext_log_handle);
-    if (old_h && old_h != INVALID_HANDLE_VALUE) {
-        FlushFileBuffers(old_h);
-        CloseHandle(old_h);
+    FILE* old_h = static_cast<FILE*>(api->_ext_log_handle);
+    if (old_h) {
+        std::fflush(old_h);
+        std::fclose(old_h);
     }
 
     ext->log_handle      = new_h;
@@ -343,14 +382,10 @@ static void api_log_named(int level, const char* message,
     fs::create_directories(full.parent_path(), ec);
     if (ec) return;
 
-    HANDLE h = CreateFileA(full.string().c_str(),
-                           GENERIC_WRITE | FILE_APPEND_DATA,
-                           FILE_SHARE_READ, nullptr, OPEN_ALWAYS,
-                           FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (h != INVALID_HANDLE_VALUE) {
-        SetFilePointer(h, 0, nullptr, FILE_END);
+    FILE* h = std::fopen(full.string().c_str(), "a");
+    if (h) {
         x4n::Logger::write_to(h, static_cast<x4n::LogLevel>(level), message);
-        CloseHandle(h);
+        std::fclose(h);
     }
 }
 
@@ -370,31 +405,6 @@ void ExtensionManager::load_all() {
         Logger::info("Autoreload: watching {} extension(s) for DLL changes",
                      std::count_if(s_extensions.begin(), s_extensions.end(),
                                    [](const ExtensionInfo& e) { return e.autoreload && e.initialized; }));
-}
-
-// SEH wrappers — must be in separate functions (no C++ objects requiring unwinding)
-static int seh_call_api_version(ExtensionInfo::api_version_fn fn) {
-    __try {
-        return fn();
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        return -1;
-    }
-}
-
-static int seh_call_init(ExtensionInfo::init_fn fn, X4NativeAPI* api) {
-    __try {
-        return fn(api);
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        return -1;
-    }
-}
-
-static void seh_call_shutdown(ExtensionInfo::shutdown_fn fn) {
-    __try {
-        fn();
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        // logged by caller
-    }
 }
 
 ExtensionManager::LoadResult ExtensionManager::load_extension(ExtensionInfo& ext) {
@@ -425,44 +435,56 @@ ExtensionManager::LoadResult ExtensionManager::load_extension(ExtensionInfo& ext
     // while the game is running. The live copy is what gets LoadLibrary'd.
     fs::path src(ext.dll_path);
     ext.dll_live_path = (src.parent_path() / (src.stem().string() + "_live" + src.extension().string())).string();
-    if (!CopyFileA(ext.dll_path.c_str(), ext.dll_live_path.c_str(), FALSE)) {
-        Logger::error("Extension '{}': CopyFile failed (error={})", ext.display_name, GetLastError());
+    Logger::info("Extension '{}': source module '{}' -> live module '{}'",
+                 ext.display_name, ext.dll_path, ext.dll_live_path);
+    Logger::info("Extension '{}': source module metadata size={} mtime={}",
+                 ext.display_name, file_size_value(ext.dll_path), file_mtime_value(ext.dll_path));
+    if (fs::exists(ext.dll_live_path)) {
+        Logger::info("Extension '{}': existing live module metadata size={} mtime={}",
+                     ext.display_name, file_size_value(ext.dll_live_path), file_mtime_value(ext.dll_live_path));
+    }
+    std::error_code copy_ec;
+    fs::copy_file(ext.dll_path, ext.dll_live_path, fs::copy_options::overwrite_existing, copy_ec);
+    if (copy_ec) {
+        Logger::error("Extension '{}': copy_file failed ({})", ext.display_name, copy_ec.message());
         return LoadResult::failed;
     }
+    Logger::info("Extension '{}': copied live module metadata size={} mtime={}",
+                 ext.display_name, file_size_value(ext.dll_live_path), file_mtime_value(ext.dll_live_path));
 
     // Snapshot the original DLL's mtime so tick() can detect future changes
-    WIN32_FILE_ATTRIBUTE_DATA mtime_attr = {};
-    if (GetFileAttributesExA(ext.dll_path.c_str(), GetFileExInfoStandard, &mtime_attr))
-        ext.dll_mtime = mtime_attr.ftLastWriteTime;
+    ext.dll_mtime = file_mtime_value(ext.dll_path);
 
-    ext.module = LoadLibraryA(ext.dll_live_path.c_str());
+    ext.module = platform::load_module(ext.dll_live_path.c_str());
     if (!ext.module) {
-        Logger::error("Extension '{}': LoadLibrary failed (error={})",
-                      ext.display_name, GetLastError());
-        DeleteFileA(ext.dll_live_path.c_str());
+        Logger::error("Extension '{}': load_module failed for '{}' ({})",
+                      ext.display_name, ext.dll_live_path, platform::last_error());
+        std::error_code remove_ec;
+        fs::remove(ext.dll_live_path, remove_ec);
         return LoadResult::failed;
     }
 
     // Resolve required exports
     ext.fn_api_version = reinterpret_cast<ExtensionInfo::api_version_fn>(
-        GetProcAddress(ext.module, "x4native_api_version"));
+        platform::get_symbol(ext.module, "x4native_api_version"));
     ext.fn_init = reinterpret_cast<ExtensionInfo::init_fn>(
-        GetProcAddress(ext.module, "x4native_init"));
+        platform::get_symbol(ext.module, "x4native_init"));
     ext.fn_shutdown = reinterpret_cast<ExtensionInfo::shutdown_fn>(
-        GetProcAddress(ext.module, "x4native_shutdown"));
+        platform::get_symbol(ext.module, "x4native_shutdown"));
 
     auto unload_live = [&] {
-        FreeLibrary(ext.module);
+        platform::unload_module(ext.module);
         ext.module = nullptr;
-        DeleteFileA(ext.dll_live_path.c_str());
+        std::error_code remove_ec;
+        fs::remove(ext.dll_live_path, remove_ec);
         ext.dll_live_path.clear();
         // Close per-extension log if it was already opened (log open happens after this
         // lambda is defined, but ext.log_handle starts as INVALID_HANDLE_VALUE so early
         // failure paths are safe — they simply skip the close)
-        if (ext.log_handle != INVALID_HANDLE_VALUE) {
-            FlushFileBuffers(ext.log_handle);
-            CloseHandle(ext.log_handle);
-            ext.log_handle = INVALID_HANDLE_VALUE;
+        if (ext.log_handle) {
+            std::fflush(ext.log_handle);
+            std::fclose(ext.log_handle);
+            ext.log_handle = nullptr;
         }
         ext.log_path.clear();
     };
@@ -475,7 +497,7 @@ ExtensionManager::LoadResult ExtensionManager::load_extension(ExtensionInfo& ext
     }
 
     // Check runtime API version
-    int ext_api = seh_call_api_version(ext.fn_api_version);
+    int ext_api = guarded_call_api_version(ext.fn_api_version);
     if (ext_api == -1) {
         Logger::error("Extension '{}': x4native_api_version() crashed", ext.display_name);
         unload_live();
@@ -508,7 +530,7 @@ ExtensionManager::LoadResult ExtensionManager::load_extension(ExtensionInfo& ext
             ext.log_path = log_dir + ext.extension_id + ".log";
         }
         ext.log_handle = Logger::open_log(ext.log_path);
-        if (ext.log_handle == INVALID_HANDLE_VALUE) {
+        if (!ext.log_handle) {
             Logger::warn("Extension '{}': could not open log at '{}'",
                          ext.display_name, ext.log_path);
         } else {
@@ -529,7 +551,7 @@ ExtensionManager::LoadResult ExtensionManager::load_extension(ExtensionInfo& ext
     fill_api(ext.api, ext);
 
     // SEH-wrapped init call
-    int result = seh_call_init(ext.fn_init, &ext.api);
+    int result = guarded_call_init(ext.fn_init, &ext.api);
     if (result == -1) {
         Logger::error("Extension '{}': x4native_init() crashed (SEH exception)", ext.display_name);
         unload_live();
@@ -550,7 +572,7 @@ ExtensionManager::LoadResult ExtensionManager::load_extension(ExtensionInfo& ext
 void ExtensionManager::unload_extension(ExtensionInfo& ext) {
     if (ext.initialized && ext.fn_shutdown) {
         Logger::info("Shutting down extension: {}", ext.display_name);
-        seh_call_shutdown(ext.fn_shutdown);
+        guarded_call_shutdown(ext.fn_shutdown);
         ext.initialized = false;
     }
     // Remove event subscriptions owned by this extension
@@ -562,18 +584,19 @@ void ExtensionManager::unload_extension(ExtensionInfo& ext) {
     // extension_id — the canonical unique identifier.
     HookManager::remove_all_for_extension(ext.extension_id.c_str());
     if (ext.module) {
-        FreeLibrary(ext.module);
+        platform::unload_module(ext.module);
         ext.module = nullptr;
     }
     if (!ext.dll_live_path.empty()) {
-        DeleteFileA(ext.dll_live_path.c_str());
+        std::error_code remove_ec;
+        fs::remove(ext.dll_live_path, remove_ec);
         ext.dll_live_path.clear();
     }
     // Close per-extension log (after shutdown so the extension can log until the end)
-    if (ext.log_handle != INVALID_HANDLE_VALUE) {
-        FlushFileBuffers(ext.log_handle);
-        CloseHandle(ext.log_handle);
-        ext.log_handle = INVALID_HANDLE_VALUE;
+    if (ext.log_handle) {
+        std::fflush(ext.log_handle);
+        std::fclose(ext.log_handle);
+        ext.log_handle = nullptr;
     }
     ext.log_path.clear();  // reset so load_extension recomputes from log_name on hot-reload
 
@@ -595,10 +618,10 @@ void ExtensionManager::tick() {
     for (auto& ext : s_extensions) {
         if (!ext.autoreload || !ext.initialized || ext.reload_pending) continue;
 
-        WIN32_FILE_ATTRIBUTE_DATA attr = {};
-        if (!GetFileAttributesExA(ext.dll_path.c_str(), GetFileExInfoStandard, &attr)) continue;
+        uint64_t current_mtime = file_mtime_value(ext.dll_path);
+        if (current_mtime == 0) continue;
 
-        if (CompareFileTime(&attr.ftLastWriteTime, &ext.dll_mtime) > 0) {
+        if (current_mtime > ext.dll_mtime) {
             Logger::info("Extension '{}': DLL changed on disk, queuing hot-reload",
                          ext.display_name);
             ext.reload_pending = true;

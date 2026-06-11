@@ -11,10 +11,7 @@
 //   shutdown() → x4native_shutdown() + FreeLibrary (reverse order)
 // ---------------------------------------------------------------------------
 
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
+#include "platform.h"
 
 #include <string>
 #include <vector>
@@ -50,15 +47,15 @@ struct ExtensionInfo {
     // Per-extension log file.
     // log_name: raw value from "log" field in x4native.json (empty = use <name>.log default)
     // log_path: resolved absolute path (set in load_extension, may be updated by api_init_log)
-    // log_handle: open HANDLE to the current log file (INVALID_HANDLE_VALUE if not open)
+    // log_handle: open FILE* to the current log file (nullptr if not open)
     std::string log_name;
     std::string log_path;
-    HANDLE      log_handle = INVALID_HANDLE_VALUE;
+    FILE*       log_handle = nullptr;
 
-    HMODULE     module = nullptr;
+    platform::ModuleHandle module = nullptr;
     bool        initialized = false;
     bool        reload_pending = false;  // set by tick(), consumed by flush_pending_reloads()
-    FILETIME    dll_mtime = {};          // mtime of dll_path at last load (for change detection)
+    uint64_t    dll_mtime = 0;           // mtime of dll_path at last load (for change detection)
 
     // Declared settings schema — parsed from x4native.json at discovery time.
     // The authoritative data lives in SettingsManager, keyed by extension_id.

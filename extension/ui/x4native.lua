@@ -68,15 +68,14 @@ end
 local function load_dll()
     if x4native_api then return true end
 
-    -- Must be Windows with protected mode disabled
-    if package == nil
-       or package.config:sub(1,1) ~= "\\"
-       or GetUISafeModeOption() ~= false then
-        DebugError("X4Native: Requires Windows with Protected UI Mode disabled.")
+    if package == nil or GetUISafeModeOption() ~= false then
+        DebugError("X4Native: Requires Protected UI Mode disabled.")
         return false
     end
 
-    local dll_path = ".\\extensions\\x4native\\native\\x4native_64.dll"
+    local path_sep = package.config:sub(1,1)
+    local module_name = path_sep == "\\" and "x4native_64.dll" or "x4native_64.so"
+    local dll_path = "." .. path_sep .. "extensions" .. path_sep .. "x4native" .. path_sep .. "native" .. path_sep .. module_name
     local loader = package.loadlib(dll_path, "luaopen_x4native")
     if not loader then
         DebugError("X4Native: Failed to locate DLL at " .. dll_path)

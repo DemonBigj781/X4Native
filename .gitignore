@@ -1,5 +1,6 @@
 # Build output
 build/
+build-linux/
 
 # Local developer config (contains machine-specific X4 game path)
 CMakeUserPresets.json

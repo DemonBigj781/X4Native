@@ -28,6 +28,13 @@
 extern "C" {
 #endif
 
+// ---- Calling convention / exception portability --------------------------
+#if defined(_WIN32) && defined(_MSC_VER)
+  #define X4NATIVE_FASTCALL __fastcall
+#else
+  #define X4NATIVE_FASTCALL
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -59,7 +66,7 @@ typedef struct X4NativeSettingChanged {
 } X4NativeSettingChanged;
 
 // ---- Export macro ---------------------------------------------------------
-#ifdef _MSC_VER
+#if defined(_WIN32) && defined(_MSC_VER)
   #define X4NATIVE_EXPORT extern "C" __declspec(dllexport)
 #elif defined(__GNUC__)
   #define X4NATIVE_EXPORT extern "C" __attribute__((visibility("default")))

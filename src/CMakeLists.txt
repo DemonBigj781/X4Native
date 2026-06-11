@@ -5,6 +5,10 @@
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(UNIX AND NOT APPLE)
+    set(X4N_PLATFORM_LINUX ON)
+endif()
+
 # ---------------------------------------------------------------------------
 # Feature flags
 # ---------------------------------------------------------------------------
@@ -32,27 +36,28 @@ FetchContent_Declare(json
     GIT_SHALLOW    TRUE
 )
 
-FetchContent_Declare(minhook
-    GIT_REPOSITORY https://github.com/TsudaKageyu/minhook.git
-    GIT_TAG        v1.3.3
-    GIT_SHALLOW    TRUE
-)
-
 FetchContent_MakeAvailable(json)
 
-# MinHook v1.3.3 has no CMakeLists.txt — fetch sources only, then build manually.
-FetchContent_GetProperties(minhook)
-if(NOT minhook_POPULATED)
-    FetchContent_Populate(minhook)
-endif()
+if(WIN32)
+    FetchContent_Declare(minhook
+        GIT_REPOSITORY https://github.com/TsudaKageyu/minhook.git
+        GIT_TAG        v1.3.3
+        GIT_SHALLOW    TRUE
+    )
 
-add_library(minhook STATIC
-    ${minhook_SOURCE_DIR}/src/buffer.c
-    ${minhook_SOURCE_DIR}/src/hook.c
-    ${minhook_SOURCE_DIR}/src/trampoline.c
-    ${minhook_SOURCE_DIR}/src/hde/hde64.c
-)
-target_include_directories(minhook PUBLIC ${minhook_SOURCE_DIR}/include)
+    FetchContent_GetProperties(minhook)
+    if(NOT minhook_POPULATED)
+        FetchContent_Populate(minhook)
+    endif()
+
+    add_library(minhook STATIC
+        ${minhook_SOURCE_DIR}/src/buffer.c
+        ${minhook_SOURCE_DIR}/src/hook.c
+        ${minhook_SOURCE_DIR}/src/trampoline.c
+        ${minhook_SOURCE_DIR}/src/hde/hde64.c
+    )
+    target_include_directories(minhook PUBLIC ${minhook_SOURCE_DIR}/include)
+endif()
 
 # ---------------------------------------------------------------------------
 # Proxy DLL — thin, stable, ~100 lines
@@ -81,6 +86,10 @@ set_target_properties(x4native_64 PROPERTIES
     OUTPUT_NAME "x4native_64"
 )
 
+if(UNIX AND NOT APPLE)
+    set_target_properties(x4native_64 PROPERTIES SUFFIX ".so")
+endif()
+
 # ---------------------------------------------------------------------------
 # Core DLL — hot-reloadable, contains all framework logic
 # ---------------------------------------------------------------------------
@@ -103,18 +112,30 @@ target_include_directories(x4native_core PRIVATE
 
 target_link_libraries(x4native_core PRIVATE
     nlohmann_json::nlohmann_json
-    minhook
-    version       # Windows Version API (GetFileVersionInfo)
 )
+
+if(WIN32)
+    target_link_libraries(x4native_core PRIVATE
+        minhook
+        version
+    )
+elseif(UNIX AND NOT APPLE)
+    target_link_libraries(x4native_core PRIVATE dl)
+endif()
 
 set_target_properties(x4native_core PROPERTIES
     PREFIX ""
     OUTPUT_NAME "x4native_core"
 )
 
+if(UNIX AND NOT APPLE)
+    set_target_properties(x4native_core PROPERTIES SUFFIX ".so")
+endif()
+
 # ---------------------------------------------------------------------------
 # Install rules — targets go into native/ under the install prefix
 # ---------------------------------------------------------------------------
 install(TARGETS x4native_64 x4native_core
     RUNTIME DESTINATION native
+    LIBRARY DESTINATION native
 )

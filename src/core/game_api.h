@@ -13,6 +13,7 @@
 // (native/version_db/internal_functions.json) loaded at init time.
 // ---------------------------------------------------------------------------
 
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 

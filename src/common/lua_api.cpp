@@ -1,9 +1,5 @@
 #include "lua_api.h"
-
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
+#include "platform.h"
 
 namespace x4n { namespace lua {
 
@@ -71,12 +67,15 @@ bool resolve() {
 
     // X4 ships LuaJIT 2.1.0-beta3 as lua51_64.dll in the game root.
     // X4.exe does NOT export any Lua symbols — they're all in this DLL.
-    HMODULE h = GetModuleHandleA("lua51_64.dll");
-    if (!h) h = GetModuleHandleA("lua51.dll");    // fallback
+    auto h = platform::get_loaded_module("lua51_64.dll");
+    if (!h) h = platform::get_loaded_module("lua51.dll");
+    if (!h) h = platform::get_loaded_module("lua51_64.so");
+    if (!h) h = platform::get_loaded_module("libluajit-5.1.so.2");
+    if (!h) h = platform::get_main_module();
     if (!h) return false;
 
 #define RESOLVE(ptr, sym)                                                     \
-    ptr = reinterpret_cast<decltype(ptr)>(GetProcAddress(h, sym));            \
+    ptr = reinterpret_cast<decltype(ptr)>(platform::get_symbol(h, sym));      \
     if (!ptr) return false
 
     RESOLVE(gettop,           "lua_gettop");

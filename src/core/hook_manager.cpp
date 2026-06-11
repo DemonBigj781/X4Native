@@ -10,6 +10,47 @@
 #include "logger.h"
 #include "game_api.h"
 
+#if !defined(_WIN32)
+
+namespace x4n {
+
+std::unordered_map<std::string, HookedFunction> HookManager::s_hooks;
+std::recursive_mutex HookManager::s_mutex;
+int HookManager::s_next_id = 1;
+bool HookManager::s_initialized = false;
+
+bool HookManager::init() {
+    s_initialized = true;
+    Logger::warn("HookManager: hooks are not implemented on Linux in phase 1");
+    return true;
+}
+
+void HookManager::shutdown() {
+    std::lock_guard lock(s_mutex);
+    s_hooks.clear();
+    s_initialized = false;
+}
+
+void HookManager::remove_all() {
+    std::lock_guard lock(s_mutex);
+    s_hooks.clear();
+}
+
+int HookManager::hook_before(const char*, X4HookCallback, void*, int, const char*) { return -1; }
+int HookManager::hook_after(const char*, X4HookCallback, void*, int, const char*) { return -1; }
+void HookManager::unhook(int) {}
+void HookManager::remove_all_for_extension(const char*) {}
+void* HookManager::get_trampoline(const char*) { return nullptr; }
+void* HookManager::ensure_detour(const char*, void*) { return nullptr; }
+void HookManager::run_before_hooks(X4HookContext*) {}
+void HookManager::run_after_hooks(X4HookContext*) {}
+HookedFunction* HookManager::ensure_hooked(const char*) { return nullptr; }
+void HookManager::sort_callbacks(std::vector<HookCallbackInfo>&) {}
+
+} // namespace x4n
+
+#else
+
 #include <MinHook.h>
 #include <algorithm>
 
@@ -323,3 +364,5 @@ void HookManager::run_after_hooks(X4HookContext* ctx) {
 }
 
 } // namespace x4n
+
+#endif

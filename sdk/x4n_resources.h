@@ -72,7 +72,11 @@ inline uint32_t collect_raw(
     *area_count = 0;
     if (!accum_buf || max_wares == 0) return 0;
 
+#if defined(_WIN32) && defined(_MSC_VER)
     __try {
+#else
+    try {
+#endif
         auto* sector = entity::find_component(sector_id);
         if (!sector) return 0;
         if (!entity::is_a(sector, x4n::GameClass::Sector)) return 0;
@@ -119,8 +123,11 @@ inline uint32_t collect_raw(
         }
         *area_count = acount;
         return wcount;
-    }
+#if defined(_WIN32) && defined(_MSC_VER)
     __except (1) {
+#else
+    } catch (...) {
+#endif
         return 0;
     }
 }

@@ -1,31 +1,32 @@
 #include "version.h"
 #include "logger.h"
+#include "platform.h"
 
+#if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
+#endif
+
+#include <cctype>
 #include <fstream>
-#include <sstream>
 #include <algorithm>
+#include <filesystem>
 #include <vector>
 
 namespace x4n {
 
+namespace fs = std::filesystem;
+
 /// Primary: read <game_root>/version.dat — a plain-text file containing
 /// the build number as a single line (e.g. "900" for v9.00).
 static std::string read_version_dat() {
-    // Resolve game root from X4.exe's location
-    char exe_path[MAX_PATH];
-    if (!GetModuleFileNameA(nullptr, exe_path, MAX_PATH))
-        return {};
+    std::string exe_path = platform::module_filename(platform::get_main_module());
+    if (exe_path.empty()) return {};
 
-    std::string dir(exe_path);
-    auto pos = dir.rfind('\\');
-    if (pos == std::string::npos) return {};
-    dir = dir.substr(0, pos + 1);  // includes trailing backslash
-
-    std::ifstream f(dir + "version.dat");
+    fs::path version_path = fs::path(exe_path).parent_path() / "version.dat";
+    std::ifstream f(version_path);
     if (!f.is_open()) return {};
 
     std::string line;
@@ -70,6 +71,7 @@ std::string Version::detect() {
     }
 
     // 2. Fallback: X4.exe PE file version
+#if defined(_WIN32)
     char exe_path[MAX_PATH];
     if (!GetModuleFileNameA(nullptr, exe_path, MAX_PATH))
         return "unknown";
@@ -97,6 +99,10 @@ std::string Version::detect() {
     std::snprintf(ver, sizeof(ver), "%d.%02d", major, minor);
     Logger::info("Detected game version (from PE): {}", ver);
     return ver;
+#else
+    Logger::warn("Version: version.dat not found and PE fallback is unavailable on this platform");
+    return "unknown";
+#endif
 }
 
 const std::string& Version::build() {

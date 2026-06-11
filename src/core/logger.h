@@ -4,15 +4,12 @@
 //
 // Lightweight logger with two sinks:
 //   1. File sink  → <mod_root>/x4native.log   (rotated each init: keeps x4native.1-4.log)
-//   2. MSVC sink  → OutputDebugString          (visible in debugger / DebugView)
+//   2. Debug sink → platform debug output / stderr fallback
 //
 // Uses C++23 std::format — no external dependencies.
 // ---------------------------------------------------------------------------
 
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
+#include <cstdio>
 
 #include <format>
 #include <string>
@@ -58,14 +55,14 @@ public:
 
     // Open (and rotate) a log file at an absolute path.
     // Strips the .log suffix to form the backup base name, shifts .1-.4 backups,
-    // then creates a fresh file. Returns INVALID_HANDLE_VALUE on failure.
+    // then creates a fresh file. Returns nullptr on failure.
     // Used by both the framework log and per-extension logs.
-    static HANDLE open_log(const std::string& log_path);
+    static FILE* open_log(const std::string& log_path);
 
     static void write(LogLevel level, std::string_view msg);
 
-    // Write to an arbitrary HANDLE — used by per-extension log routing.
-    static void write_to(HANDLE h, LogLevel level, std::string_view msg);
+    // Write to an arbitrary FILE* — used by per-extension log routing.
+    static void write_to(FILE* h, LogLevel level, std::string_view msg);
 
     template<typename... Args>
     static void debug([[maybe_unused]] std::format_string<Args...> fmt, [[maybe_unused]] Args&&... args) {
@@ -90,7 +87,7 @@ public:
     }
 
 private:
-    static HANDLE     s_handle;
+    static FILE*      s_handle;
     static std::mutex s_mutex;
 
     // Buffer active between init() and open_files(): early lines land here

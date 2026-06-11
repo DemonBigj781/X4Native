@@ -30,7 +30,7 @@ namespace x4n { namespace entity {
 /// NOT safe on lightweight types like ResourceArea — crashes (no GameClass entry).
 inline GameClass game_class(const X4Component* comp) {
     if (!comp || !comp->vtable) return static_cast<GameClass>(GAMECLASS_SENTINEL);
-    using Fn = uint32_t(__fastcall*)(const void*);
+    using Fn = uint32_t(X4NATIVE_FASTCALL*)(const void*);
     auto fn = reinterpret_cast<Fn*>(comp->vtable)[detail::offsets()->vtable_get_class_id];
     return static_cast<GameClass>(fn ? fn(comp) : GAMECLASS_SENTINEL);
 }
@@ -38,7 +38,7 @@ inline GameClass game_class(const X4Component* comp) {
 /// IS-A check via vtable IsOrDerivedFromClassID slot.
 inline bool is_a(const X4Component* comp, GameClass cls) {
     if (!comp || !comp->vtable) return false;
-    using Fn = bool(__fastcall*)(const void*, uint32_t);
+    using Fn = bool(X4NATIVE_FASTCALL*)(const void*, uint32_t);
     auto fn = reinterpret_cast<Fn*>(comp->vtable)[detail::offsets()->vtable_is_derived_class];
     return fn ? fn(comp, static_cast<uint32_t>(cls)) : false;
 }
@@ -73,13 +73,18 @@ inline const char* get_class_name(uint64_t id) {
 /// Returns nullptr if the value is null or not a valid entity pointer.
 inline X4EntityBase* resolve_entity(uint64_t raw_ptr) {
     if (raw_ptr == 0) return nullptr;
+#if defined(_WIN32) && defined(_MSC_VER)
     __try {
         auto* ent = reinterpret_cast<X4EntityBase*>(raw_ptr);
-        (void)ent->id;  // probe — triggers SEH if invalid
+        (void)ent->id;
         return ent;
     } __except(1) {
         return nullptr;
     }
+#else
+    auto* ent = reinterpret_cast<X4EntityBase*>(raw_ptr);
+    return ent;
+#endif
 }
 
 /// Read the macro name string from a heavy component (sector, cluster, station, ship).
@@ -91,24 +96,24 @@ inline X4EntityBase* resolve_entity(uint64_t raw_ptr) {
 /// @note Assumes MSVC x64 std::string layout (SSO threshold = 16 bytes).
 /// @stability MODERATE — depends on X4_COMPONENT_OFFSET_DEFINITION (+0x30) + vtable[4].
 /// @verified v9.00 build 602526 (GetComponentData "macro" handler at 0x1402461CC)
-#ifdef _MSC_VER
 inline const char* get_component_macro(X4Component* component) {
     if (!component || !component->definition.vtable) return nullptr;
+#if defined(_MSC_VER)
     auto* str = reinterpret_cast<uint64_t*>(component->definition.GetMacroName());
     if (!str) return nullptr;
     // MSVC x64 std::string SSO: data inline at str[0..1] if capacity (str[3]) < 16.
     return (str[3] < 16)
         ? reinterpret_cast<const char*>(str)
         : reinterpret_cast<const char*>(str[0]);
+ #else
+    return nullptr;
+ #endif
 }
-#endif
 
 /// Convenience overload: read macro name by UniverseID.
-#ifdef _MSC_VER
 inline const char* get_component_macro(uint64_t id) {
     return get_component_macro(find_component(id));
 }
-#endif
 
 /// Read the spawntime from a Container-class entity (station, ship).
 /// Returns the game time (seconds since game start) when the object was
