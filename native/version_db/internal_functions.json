@@ -276,6 +276,25 @@
         "rva_linux": "0x007EEB20"
       }
     },
+    "RemoveOrderListParam": {
+      "_find_hints": {
+        "method": "caller_chain",
+        "steps": [
+          "1. Find the Lua global registration function that registers bare globals via lua_pushcclosure/lua_setfield.",
+          "2. Search for the 'RemoveOrderListParam' name string and find its registration row. On Linux/SysV, the handler pointer is loaded into RSI immediately before lua_pushcclosure.",
+          "3. Cross-check the recovered handler via its error strings: 'RemoveOrderListParam(): Param index exceeds 32-bit', '... exceeds number of parameters', '... is not a list', '... List index exceeds 32-bit', and '... exceeds number of list entries'.",
+          "4. The Linux v9.00-611726 registration row resolves the handler to 0x022627C0.",
+          "5. Most list-removal mutation logic is inline in this handler after it resolves the order param list entry range."
+        ],
+        "verify_strings": ["RemoveOrderListParam():", "RemoveOrderListParam"],
+        "byte_sig": "41 55 BA FF FF FF FF BE 04 00 00 00 41 54 55 48 89 FD 53 48 83 EC 18",
+        "byte_sig_note": "Linux v9.00-611726 handler prologue at 0x022627C0: push r13; mov edx,-1; mov esi,4; push r12; push rbp; mov rbp,rdi; push rbx; sub rsp,18h."
+      },
+      "900-611726": {
+        "rva": "0x00288A40",
+        "rva_linux": "0x022627C0"
+      }
+    },
     "SetCommander": {
       "_find_hints": {
         "method": "pe_export",

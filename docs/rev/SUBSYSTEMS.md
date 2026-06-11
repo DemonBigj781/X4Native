@@ -400,6 +400,11 @@ For the Linux v9.00-611726 binary, the registration-table recovery resolves
 `SetOrderParam` to handler `0x0227B340`. The registration row uses the string
 `SetOrderParam` at `0x0365BB2D` and stores handler pointer `0x0227B340` beside it.
 
+For the Linux v9.00-611726 binary, the adjacent registration row resolves
+`RemoveOrderListParam` to handler `0x022627C0`. The registration row uses the
+name string `RemoveOrderListParam` at `0x0365BB3B` and stores handler pointer
+`0x022627C0` beside it.
+
 ### SetOrderParam Caller Chain
 
 For `SetOrderParam`, the Linux/SysV ABI details matter:
