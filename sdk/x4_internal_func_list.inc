@@ -117,8 +117,8 @@ X4_FUNC(void*, CreateOrderInternal, (void* entity, void* string_view, int mode, 
 // lua_pushcclosure in RSI, and SetOrderParamInternal receives
 // (order, param_idx, value) in RDI, RSI, RDX.
 // Verified: v9.00 build 611726, RVA 0x010764D0 (Windows),
-// Linux RVA 0x007EEB20. Cross-check via SetOrderParam(): error strings,
-// the SetOrderParam Lua handler at Linux 0x0227B340, and the
+// Linux RVA 0x010B88B0. Cross-check via SetOrderParam(): error strings,
+// the updated Linux SetOrderParam Lua handler at 0x00ADAF30, and the
 // AIOrderParamEditedEvent dispatch path.
 X4_FUNC(char, SetOrderParamInternal, (void* order, size_t param_idx, void* value))
 

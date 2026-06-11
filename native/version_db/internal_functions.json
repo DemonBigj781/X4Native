@@ -273,7 +273,7 @@
       "900-607977": { "rva": "0x01030480" },
       "900-611726": {
         "rva": "0x010764D0",
-        "rva_linux": "0x007EEB20"
+        "rva_linux": "0x010B88B0"
       }
     },
     "RemoveOrderListParam": {
@@ -283,16 +283,16 @@
           "1. Find the Lua global registration function that registers bare globals via lua_pushcclosure/lua_setfield.",
           "2. Search for the 'RemoveOrderListParam' name string and find its registration row. On Linux/SysV, the handler pointer is loaded into RSI immediately before lua_pushcclosure.",
           "3. Cross-check the recovered handler via its error strings: 'RemoveOrderListParam(): Param index exceeds 32-bit', '... exceeds number of parameters', '... is not a list', '... List index exceeds 32-bit', and '... exceeds number of list entries'.",
-          "4. The Linux v9.00-611726 registration row resolves the handler to 0x022627C0.",
+          "4. The updated Linux v9.00-611726 registration row resolves the handler to 0x00ADB260.",
           "5. Most list-removal mutation logic is inline in this handler after it resolves the order param list entry range."
         ],
         "verify_strings": ["RemoveOrderListParam():", "RemoveOrderListParam"],
         "byte_sig": "41 55 BA FF FF FF FF BE 04 00 00 00 41 54 55 48 89 FD 53 48 83 EC 18",
-        "byte_sig_note": "Linux v9.00-611726 handler prologue at 0x022627C0: push r13; mov edx,-1; mov esi,4; push r12; push rbp; mov rbp,rdi; push rbx; sub rsp,18h."
+        "byte_sig_note": "Updated Linux v9.00-611726 handler prologue at 0x00ADB260: push r13; push r12; push rbp; push rbx; mov rbx,rdi; sub rsp,8; then lua_gettop."
       },
       "900-611726": {
         "rva": "0x00288A40",
-        "rva_linux": "0x022627C0"
+        "rva_linux": "0x00ADB260"
       }
     },
     "SetCommander": {
@@ -311,7 +311,10 @@
       "900-606138": { "rva": "0x001C6170" },
       "900-607242": { "rva": "0x001C6460" },
       "900-607977": { "rva": "0x001C7190" },
-      "900-611726": { "rva": "0x001FF400" }
+      "900-611726": {
+        "rva": "0x001FF400",
+        "rva_linux": "0x021DD940"
+      }
     },
     "SetAssignment": {
       "_find_hints": {
@@ -328,7 +331,10 @@
       "900-606138": { "rva": "0x001C5F40" },
       "900-607242": { "rva": "0x001C6230" },
       "900-607977": { "rva": "0x001C6F60" },
-      "900-611726": { "rva": "0x001FF1D0" }
+      "900-611726": {
+        "rva": "0x001FF1D0",
+        "rva_linux": "0x021DD820"
+      }
     },
     "GetFactionBuildMethod": {
       "_find_hints": {
@@ -346,7 +352,10 @@
       "900-606138": { "rva": "0x00194CC0" },
       "900-607242": { "rva": "0x00194FB0" },
       "900-607977": { "rva": "0x001953C0" },
-      "900-611726": { "rva": "0x001CD310" }
+      "900-611726": {
+        "rva": "0x001CD310",
+        "rva_linux": "0x021A02C0"
+      }
     },
     "EventQueue_InsertOrDispatch": {
       "_find_hints": {
