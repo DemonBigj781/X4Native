@@ -394,7 +394,10 @@
         "byte_sig": "48 89 5C 24 08 48 89 74 24 18 48 89 7C 24 20 55 41 54 41 55 41 56 41 57 48 8D 6C 24 E0 48 81 EC 20",
         "byte_sig_note": "First 31 bytes: save rbx/rsi/rdi to home area; push rbp/r12/r13/r14/r15; lea rbp,[rsp-20h]; sub rsp,120h. Distinctive 0x120 stack frame."
       },
-      "900-611726": { "rva": "0x0122DFA0" }
+      "900-611726": {
+        "rva": "0x0122DFA0",
+        "rva_linux": "0x02083F70"
+      }
     }
   }
 }
