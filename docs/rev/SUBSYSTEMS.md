@@ -370,8 +370,8 @@ The engine is NOT called directly from code — it's called **only via vtable di
 This function registers ALL bare Lua globals (`GetPlayerRoom`, `SetOrderParam`, etc.) by mapping them to native C handler functions. The repeating pattern:
 
 ```asm
-lea rdx, sub_XXXXXXXX       ; native C handler function pointer
-xor r8d, r8d                ; upvalue count = 0
+lea rsi, [rip+sub_XXXXXXXX] ; native C handler function pointer (SysV arg 2)
+xor edx, edx                ; upvalue count = 0 (SysV arg 3)
 call lua_pushcclosure        ; push C closure onto Lua stack
 mov rcx, cs:qword_1438731E0 ; Lua state global
 lea r8, aFunctionName       ; "FunctionName" string literal
@@ -385,7 +385,7 @@ call lua_setfield            ; register as global in Lua state
 1. Search for the function name string (e.g., `find string "GetPlayerRoom"`)
 2. Get the string address
 3. Find xrefs to that string — should be in `sub_140236710`
-4. Look 2 instructions before the `lua_setfield` call for `lea rdx, sub_XXXXXXXX` — that's the native handler
+4. On Linux/SysV, look immediately before `lua_pushcclosure` for `lea rsi, [rip+sub_XXXXXXXX]` — that's the native handler
 
 **Known mappings discovered via this table:**
 
@@ -395,6 +395,24 @@ call lua_setfield            ; register as global in Lua state
 | `SetOrderParam` | `sub_1402885C0` | 298 insns, Lua-only (no C++ callers) |
 | `RemoveOrderListParam` | `sub_140288A40` | Order parameter removal |
 | `TransferPlayerMoneyTo` | `sub_14024D950` | Money transfer handler |
+
+For the Linux v9.00-611726 binary, the registration-table recovery resolves
+`SetOrderParam` to handler `0x0227B340`. The registration row uses the string
+`SetOrderParam` at `0x0365BB2D` and stores handler pointer `0x0227B340` beside it.
+
+### SetOrderParam Caller Chain
+
+For `SetOrderParam`, the Linux/SysV ABI details matter:
+
+- In the Lua global registration function, `lua_pushcclosure(L, fn, n)` takes the native handler in `RSI`, not `RDX`.
+- For Linux v9.00-611726, the recovered handler is `0x0227B340`.
+- The `SetOrderParam` native handler validates arguments, resolves entity plus order, then calls `SetOrderParamInternal`.
+- The first helper reached from the handler on Linux v9.00-611726 is `0x00839B00`, which receives `(order, param_idx, &value)` and branches by parameter shape/type before delegating deeper.
+- Cross-check the handler via its literal error strings beginning with `SetOrderParam():`.
+- `SetOrderParamInternal(order, param_idx, value)` receives its arguments in `RDI`, `RSI`, and `RDX`.
+- The early third-argument stash is `mov r14, rdx` (`4C 8B F2`), not `mov r14, r8`.
+- RTTI verification uses the Itanium-mangled `AIOrderParamEditedEvent` symbols: `_ZTVN1U23AIOrderParamEditedEventE`, `_ZTIN1U23AIOrderParamEditedEventE`, and the rodata name string `N1U23AIOrderParamEditedEventE`.
+- The Linux mutation routine that matches this signature and dispatches the order-param-edited event is `0x007EEB20` in build `900-611726`.
 
 ### Ownership
 

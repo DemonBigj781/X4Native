@@ -258,20 +258,23 @@
       "_find_hints": {
         "method": "caller_chain",
         "steps": [
-          "1. Find Lua global registration function (largest function, ~15700 bytes, registers all Lua C closures)",
-          "2. Search for 'SetOrderParam' string — the preceding lua_pushcclosure call has the native handler address",
-          "3. The native handler (~0x460 bytes) validates args, gets entity+order, then calls SetOrderParamInternal",
-          "4. SetOrderParamInternal is the callee that receives (order*, param_idx, value*)",
-          "5. Verify: references U::AIOrderParamEditedEvent vtable string in RTTI"
+          "1. Find Lua global registration function (largest function, ~15700 bytes +/- toolchain, registers all Lua C closures)",
+          "2. Search for 'SetOrderParam' string. At its xref, the lua_pushcclosure(L, fn, n) call takes fn in RSI (SysV 2nd arg, not RDX) — look for lea rsi, [rip+handler] immediately before call lua_pushcclosure.",
+          "3. The native handler validates args, gets entity+order, then calls SetOrderParamInternal. Cross-check via its own error strings 'SetOrderParam(): ...' (port verbatim).",
+          "4. SetOrderParamInternal receives (order, param_idx, value) in RDI, RSI, RDX (SysV). The early stash of the 3rd arg is mov r14, rdx (4C 8B F2), not mov r14, r8.",
+          "5. Verify: references U::AIOrderParamEditedEvent typeinfo. Itanium symbols: vtable _ZTVN1U23AIOrderParamEditedEventE, typeinfo _ZTIN1U23AIOrderParamEditedEventE; the name string in .rodata is N1U23AIOrderParamEditedEventE."
         ],
-        "verify_strings": [],
-        "byte_sig": "48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 57 41 56 41 57 48 83 EC 60 0F 29 74 24 50 4D 8B F0",
-        "byte_sig_note": "First 32 bytes: mov [rsp+8],rbx; mov [rsp+10h],rbp; mov [rsp+18h],rsi; push rdi; push r14; push r15; sub rsp,60h; movaps [rsp+50h],xmm6; mov r14,r8."
+        "verify_strings": ["AIOrderParamEditedEvent", "SetOrderParam():"],
+        "byte_sig": "48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 57 41 56 41 57 48 83 EC 60 0F 29 74 24 50 4C 8B F2",
+        "byte_sig_note": "First 32 bytes: mov [rsp+8],rbx; mov [rsp+10h],rbp; mov [rsp+18h],rsi; push rdi; push r14; push r15; sub rsp,60h; movaps [rsp+50h],xmm6; mov r14,rdx."
       },
       "900-606138": { "rva": "0x010274A0" },
       "900-607242": { "rva": "0x0102B7D0" },
       "900-607977": { "rva": "0x01030480" },
-      "900-611726": { "rva": "0x010764D0" }
+      "900-611726": {
+        "rva": "0x010764D0",
+        "rva_linux": "0x007EEB20"
+      }
     },
     "SetCommander": {
       "_find_hints": {

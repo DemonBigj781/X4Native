@@ -112,8 +112,14 @@ X4_FUNC(void*, CreateOrderInternal, (void* entity, void* string_view, int mode, 
 // value = pointer to OrderParamValue struct {int32 type, int32 pad, int64 data}
 // Known types: 10 = entity (data = UniverseID)
 // Returns bool success.
-// Called by Lua SetOrderParam handler at sub_1402897D0.
-// Verified: v9.00 build 603098, RVA 0x0102BEE0
+// Called by the Lua SetOrderParam handler discovered from the Lua global
+// registration function. On Linux/SysV, the handler pointer is passed to
+// lua_pushcclosure in RSI, and SetOrderParamInternal receives
+// (order, param_idx, value) in RDI, RSI, RDX.
+// Verified: v9.00 build 611726, RVA 0x010764D0 (Windows),
+// Linux RVA 0x007EEB20. Cross-check via SetOrderParam(): error strings,
+// the SetOrderParam Lua handler at Linux 0x0227B340, and the
+// AIOrderParamEditedEvent dispatch path.
 X4_FUNC(char, SetOrderParamInternal, (void* order, size_t param_idx, void* value))
 
 // SetObjectRadarVisible_Action — MD action handler for `set_object_radar_visible`.
