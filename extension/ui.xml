@@ -2,6 +2,7 @@
 <addon name="x4native" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
        xsi:noNamespaceSchemaLocation="../../ui/core/addon.xsd">
   <environment type="menus">
+    <dependency name="sn_mod_support_apis" />
     <file name="ui/x4n_game_data.lua" />
     <file name="ui/x4native.lua" />
     <file name="ui/x4n_settings_menu.lua" />
