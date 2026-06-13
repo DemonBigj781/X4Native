@@ -48,6 +48,25 @@ local function is_kuertee_present()
     return false
 end
 
+local function has_sn_mod_support_apis()
+    if type(GetRegisteredExtensions) ~= "function" then
+        return false
+    end
+
+    local ok, extensions = pcall(GetRegisteredExtensions)
+    if not ok or type(extensions) ~= "table" then
+        return false
+    end
+
+    for _, ext in ipairs(extensions) do
+        if type(ext) == "table" and ext.id == "ws_2042901274" then
+            return true
+        end
+    end
+
+    return false
+end
+
 -- ---------------------------------------------------------------------------
 -- Lookup helpers
 -- ---------------------------------------------------------------------------
@@ -341,6 +360,11 @@ if not install() then
             -- All retries armed via RegisterEvent; once installed, do nothing.
         end
     end
+
+    if has_sn_mod_support_apis() and type(Register_OnLoad_Init) == "function" then
+        Register_OnLoad_Init(try_install, "x4native settings menu")
+    end
+
     RegisterEvent("gfx_ok", try_install)
     RegisterEvent("show",   try_install)
 end
