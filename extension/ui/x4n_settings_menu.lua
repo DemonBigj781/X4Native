@@ -27,6 +27,26 @@ local TEXT_ENABLED  = ReadText(1001, 12642)
 local TEXT_DISABLED = ReadText(1001, 12641)
 
 local INJECT_TAG = "__x4n"
+local KUERTEE_CALLBACK_ID = "x4native_settings_menu"
+
+local function is_kuertee_present()
+    if type(GetRegisteredExtensions) ~= "function" then
+        return false
+    end
+
+    local ok, extensions = pcall(GetRegisteredExtensions)
+    if not ok or type(extensions) ~= "table" then
+        return false
+    end
+
+    for _, ext in ipairs(extensions) do
+        if type(ext) == "table" and ext.id == "kuerteeUIExtensionsAndHUD" then
+            return true
+        end
+    end
+
+    return false
+end
 
 -- ---------------------------------------------------------------------------
 -- Lookup helpers
@@ -214,6 +234,69 @@ local function inject_for(menu, config)
     end
 end
 
+local function clone_options(defs)
+    local copy = {}
+    for i, def in ipairs(defs or {}) do
+        copy[i] = def
+    end
+    return copy
+end
+
+local function build_options_for_extension(menu, defs)
+    if menu.currentOption ~= "extensionsettings" then
+        return defs
+    end
+
+    local ext = menu.selectedExtension
+    if not ext or not ext.id then
+        return defs
+    end
+
+    local rows = current_settings_for(ext.id)
+    if type(rows) ~= "table" or #rows == 0 then
+        return defs
+    end
+
+    local injected = clone_options(defs)
+    table.insert(injected, { id = "line", [INJECT_TAG] = true })
+    for _, r in ipairs(rows) do
+        local builder = ROW_BUILDERS[r.type]
+        if builder then
+            table.insert(injected, builder(ext.id, r))
+        end
+    end
+
+    if api.log then
+        api.log(1, "Settings menu: injected via Kuertee callback for ext '" .. tostring(ext.id) .. "'")
+    end
+
+    return injected
+end
+
+local function install_kuertee(menu)
+    if type(menu.registerCallback) ~= "function" then
+        return false
+    end
+
+    if type(menu.deregisterCallback) == "function" then
+        pcall(menu.deregisterCallback, "displayOptions_modifyOptions", nil, KUERTEE_CALLBACK_ID)
+    end
+
+    menu.registerCallback(
+        "displayOptions_modifyOptions",
+        function(defs, config)
+            return build_options_for_extension(menu, defs, config)
+        end,
+        KUERTEE_CALLBACK_ID
+    )
+
+    installed = true
+    if api.log then
+        api.log(1, "Settings menu injector installed via Kuertee callback API")
+    end
+    return true
+end
+
 -- ---------------------------------------------------------------------------
 -- Installation
 -- ---------------------------------------------------------------------------
@@ -224,6 +307,10 @@ local function install()
     if installed then return true end
     local menu = find_options_menu()
     if not menu then return false end
+
+    if is_kuertee_present() and install_kuertee(menu) then
+        return true
+    end
 
     local config = get_config_upvalue(menu.displayOptions)
     if not config or not config.optionDefinitions
